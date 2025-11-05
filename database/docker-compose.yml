@@ -1,0 +1,26 @@
+# docker compose --env-file ../.env up -d
+services:
+  database:
+    image: mysql:8.0
+    container_name: database
+    env_file:
+      - ../.env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}                    # MySQL crée automatiquement cet utilisateur
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysqldb:/var/lib/mysql
+      # Pas besoin de init.sql/init.sh !
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mysqldb:
+    driver: local
