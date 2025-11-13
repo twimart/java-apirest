@@ -1,8 +1,9 @@
-package com.letocart.java_apirest_2026.service;
+package com.letocart.java_apirest_2026.infrastructure.adapter.out.external;
 
+import com.letocart.java_apirest_2026.domain.port.out.AddressValidationPort;
 import com.letocart.java_apirest_2026.dto.AddressValidationResponse;
 import com.letocart.java_apirest_2026.model.Address;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
@@ -11,50 +12,56 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * Service de validation d'adresse via l'API de géocodage
+ * Adapter pour validation d'adresse via API Gouvernementale française
+ * Implémente le port de sortie AddressValidationPort en utilisant HttpClient (HTTP/2)
+ * Couche Infrastructure - Architecture Hexagonale
  * 
- * Utilise HttpClient natif Java 11+ avec support HTTP/2
+ * API: https://api-gouv.lab.rioc.fr/search (BAN - Base Adresse Nationale)
+ * Pattern: Adapter (transforme l'API REST externe vers notre port métier)
+ * 
+ * @author LetoCart Team
+ * @version 1.0
  */
-@Service
-public class AddressValidationService {
+@Component
+public class AddressValidationAdapter implements AddressValidationPort {
 
     private final HttpClient httpClient;
-
-    // API du labo RIOC (remote)
     private static final String API_BASE_URL = "https://api-gouv.lab.rioc.fr/search";
-    private static final double SCORE_THRESHOLD = 0.5;
+    private static final double SCORE_THRESHOLD = 0.5; // Seuil de confiance minimum
 
-    public AddressValidationService() {
+    /**
+     * Construction de l'adapter avec HttpClient HTTP/2
+     * Note: HTTP/2 requis car l'API renvoie des réponses vides avec HTTP/1.1
+     */
+    public AddressValidationAdapter() {
         this.httpClient = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_2)
+                .version(HttpClient.Version.HTTP_2) // IMPORTANT: HTTP/2 requis
                 .build();
     }
 
     /**
-     * Valide une adresse en appelant l'API de géocodage
+     * Valide une adresse via l'API gouvernementale BAN
+     * Utilise les Streams Java (exigence TD)
      * 
      * @param address L'adresse à valider
-     * @return true si l'adresse existe et a un score de confiance > 0.5
+     * @return true si l'adresse existe avec score > 0.5, false sinon
      */
+    @Override
     public boolean validateAddress(Address address) {
         try {
-            // 1. Construction de la requête complète d'adresse
             String fullAddress = buildFullAddress(address);
-
-            // 2. Appel à l'API externe
             AddressValidationResponse response = callGeocodingApi(fullAddress);
             
-            // 3. Vérification de la réponse
             if (response == null || response.getFeatures() == null || response.getFeatures().isEmpty()) {
                 return false;
             }
 
-            // 4. Traitement avec STREAM (comme demandé dans le TD)
+            // STREAM JAVA (exigence TD): traitement fonctionnel des résultats
             return response.getFeatures().stream()
-                    .findFirst()
-                    .map(feature -> feature.getProperties().getScore())
-                    .filter(score -> score != null && score > SCORE_THRESHOLD)
-                    .isPresent();
+                    .findFirst()                     // Premier résultat
+                    .map(feature -> feature.getProperties().getScore())  // Extraire le score
+                    .filter(score -> score != null && score > SCORE_THRESHOLD) // Filtrer par seuil
+                    .isPresent();                    // Vérifier présence
 
         } catch (Exception e) {
             System.err.println("Erreur validation adresse: " + e.getMessage());
@@ -63,7 +70,9 @@ public class AddressValidationService {
     }
 
     /**
-     * Construit l'adresse complète à partir des champs
+     * Construit l'adresse complète pour la requête API
+     * @param address L'objet adresse
+     * @return String formatée "rue codePostal ville"
      */
     private String buildFullAddress(Address address) {
         return String.format("%s %s %s",
@@ -74,7 +83,9 @@ public class AddressValidationService {
     }
 
     /**
-     * Appelle l'API de géocodage avec HttpClient natif (HTTP/2)
+     * Appel de l'API de géocodage avec HttpClient HTTP/2
+     * @param fullAddress L'adresse complète à valider
+     * @return Réponse désérialisée ou null en cas d'erreur
      */
     private AddressValidationResponse callGeocodingApi(String fullAddress) {
         String url = UriComponentsBuilder
@@ -84,7 +95,6 @@ public class AddressValidationService {
                 .toUriString();
 
         try {
-            // Construction de la requête HTTP avec headers
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .header("User-Agent", "Mozilla/5.0 (compatible; JavaApp/1.0)")
@@ -92,7 +102,6 @@ public class AddressValidationService {
                     .GET()
                     .build();
             
-            // Envoi de la requête et récupération de la réponse
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             String json = response.body();
             
@@ -100,7 +109,6 @@ public class AddressValidationService {
                 return null;
             }
 
-            // Convertir avec Jackson
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             return mapper.readValue(json, AddressValidationResponse.class);
             

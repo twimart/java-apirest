@@ -1,5 +1,6 @@
 package com.letocart.java_apirest_2026.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,8 +29,10 @@ public class Account {
     // Relation OneToOne avec Address
     // CascadeType.ALL : toutes les opérations sur Account sont propagées à Address
     // orphanRemoval = true : si on supprime l'adresse de l'account, elle est aussi supprimée de la BD
+    // @JsonManagedReference : gère la sérialisation JSON pour éviter les boucles infinies
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "address_id", referencedColumnName = "address_id")
+    @JsonManagedReference
     private Address address;
 
     // Relation OneToMany avec Orders

@@ -1,5 +1,6 @@
 package com.letocart.java_apirest_2026.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 
 @Entity
@@ -24,7 +25,9 @@ public class Address {
     private String country;
 
     // Relation OneToOne avec Account (bidirectionnelle)
+    // @JsonBackReference : empêche la sérialisation de ce côté pour éviter les boucles infinies
     @OneToOne(mappedBy = "address")
+    @JsonBackReference
     private Account account;
 
     // Constructeur par défaut (obligatoire pour JPA)
