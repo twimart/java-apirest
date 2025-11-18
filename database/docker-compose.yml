@@ -1,10 +1,10 @@
-# docker compose --env-file ../.env up -d
+# docker compose up -d
 services:
   database:
     image: mysql:8.0
     container_name: database
     env_file:
-      - ../.env
+      - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
